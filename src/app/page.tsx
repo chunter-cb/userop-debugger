@@ -1,62 +1,76 @@
-'use client';
-import Footer from 'src/components/Footer';
-import { tenderlySimulateHandleOpLink, traceUserOp, parseUserOp, UserOperation, DUMMY_WALLET_PASSKEY_SIG } from '../lib';
-import { useAccount } from 'wagmi';
-import LoginButton from '../components/LoginButton';
-import SignupButton from '../components/SignupButton';
-import ArrowSvg from 'src/svg/ArrowSvg';
-import { useState, useCallback } from 'react';
-import { base, baseSepolia, mainnet, optimism, arbitrum, polygon } from 'viem/chains'
-import { createPublicClient, http, PublicClient } from 'viem';
-import debounce from 'lodash/debounce';
+"use client";
+import Footer from "src/components/Footer";
+import {
+  tenderlySimulateHandleOpLink,
+  traceUserOp,
+  parseUserOp,
+  UserOperation,
+  DUMMY_WALLET_PASSKEY_SIG,
+} from "../lib";
+import { useAccount } from "wagmi";
+import LoginButton from "../components/LoginButton";
+import SignupButton from "../components/SignupButton";
+import ArrowSvg from "src/svg/ArrowSvg";
+import { useState, useCallback } from "react";
+import {
+  base,
+  baseSepolia,
+  mainnet,
+  optimism,
+  arbitrum,
+  polygon,
+} from "viem/chains";
+import { createPublicClient, http, PublicClient } from "viem";
+import debounce from "lodash/debounce";
 
 export default function Page() {
   const { address } = useAccount();
-  
+
   // Add state management
   const [chainId, setChainId] = useState<number>(base.id);
-  const [userOpJson, setUserOpJson] = useState('');
-  const [rpcUrl, setRpcUrl] = useState('');
-  const [output, setOutput] = useState('');
+  const [userOpJson, setUserOpJson] = useState("");
+  const [rpcUrl, setRpcUrl] = useState("");
+  const [output, setOutput] = useState("");
   const [userOp, setUserOp] = useState<UserOperation | null>(null);
-  const [parseError, setParseError] = useState<string>('');
-  const [signatureMessage, setSignatureMessage] = useState('');
+  const [parseError, setParseError] = useState<string>("");
+  const [signatureMessage, setSignatureMessage] = useState("");
   const [provider, setProvider] = useState<PublicClient | null>(null);
-  const [rpcError, setRpcError] = useState<string>('');
+  const [rpcError, setRpcError] = useState<string>("");
 
-  const chains = [base, baseSepolia, mainnet, optimism, arbitrum, polygon]
+  const chains = [base, baseSepolia, mainnet, optimism, arbitrum, polygon];
 
   const tryParseUserOp = (json: string) => {
     try {
       if (!json.trim()) {
         setUserOp(null);
-        setParseError('');
-        return '';
+        setParseError("");
+        return "";
       }
       const parsedUserOp = parseUserOp(json);
 
-      let signatureMessage = '';
-      if (parsedUserOp.signature == '0x') {
+      let signatureMessage = "";
+      if (parsedUserOp.signature == "0x") {
         parsedUserOp.signature = DUMMY_WALLET_PASSKEY_SIG;
-        signatureMessage = 'Note: A dummy passkey signature was added since none was provided.';
-      } // todo add EOA sig if needed (add button to switch between passkey and EOA)
+        signatureMessage =
+          "Note: A dummy passkey signature was added since none was provided.";
+      }
 
       setUserOp(parsedUserOp);
-      setParseError('');
+      setParseError("");
       return signatureMessage;
     } catch (error: any) {
       setUserOp(null);
       setParseError(error.message);
-      return '';
+      return "";
     }
   };
 
   // Add handlers
   const handleGetTenderlySimulation = async () => {
     try {
-      setOutput('Fetching simulation...');
+      setOutput("Fetching simulation...");
       if (!userOp) {
-        throw new Error('UserOp is not correctly parsed');
+        throw new Error("UserOp is not correctly parsed");
       }
       const result = await tenderlySimulateHandleOpLink({ chainId, userOp });
       setOutput(JSON.stringify(result, null, 2));
@@ -67,12 +81,12 @@ export default function Page() {
 
   const handleTraceUserOp = async () => {
     try {
-      setOutput('Tracing UserOp...');
+      setOutput("Tracing UserOp...");
       if (!userOp) {
-        throw new Error('UserOp is not correctly parsed');
+        throw new Error("UserOp is not correctly parsed");
       }
       if (!provider) {
-        throw new Error('Provider is not correctly set');
+        throw new Error("Provider is not correctly set");
       }
       const result = await traceUserOp({ chainId, userOp, provider });
       setOutput(JSON.stringify(result, null, 2));
@@ -81,7 +95,9 @@ export default function Page() {
     }
   };
 
-  const handleUserOpJsonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleUserOpJsonChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>
+  ) => {
     setUserOpJson(e.target.value);
     const message = tryParseUserOp(e.target.value);
     setSignatureMessage(message);
@@ -92,7 +108,7 @@ export default function Page() {
     debounce(async (url: string) => {
       if (!url) {
         setProvider(null);
-        setRpcError('');
+        setRpcError("");
         return;
       }
 
@@ -101,10 +117,10 @@ export default function Page() {
       try {
         const chain = await provider.getChainId();
         setChainId(chain);
-        setRpcError('');
+        setRpcError("");
       } catch (error) {
-        console.error('Failed to validate RPC URL:', error);
-        setRpcError('Invalid RPC URL');
+        console.error("Failed to validate RPC URL:", error);
+        setRpcError("Invalid RPC URL");
       }
     }, 700),
     []
@@ -119,11 +135,7 @@ export default function Page() {
     <div className="flex h-full w-96 max-w-full flex-col px-1 md:w-[1008px]">
       <section className="mt-6 mb-6 flex w-full flex-col md:flex-row">
         <div className="flex w-full flex-row items-center justify-between gap-2 md:gap-0">
-          <a
-            title="userop debugger"
-            target="_blank"
-            rel="noreferrer"
-          >
+          <a title="userop debugger" target="_blank" rel="noreferrer">
             <span className="text-xl font-bold">Userop Debugger</span>
           </a>
           <div className="flex items-center gap-3">
@@ -135,7 +147,10 @@ export default function Page() {
       <section className="flex w-full flex-col gap-6 rounded-xl bg-gray-100 px-6 py-8">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <label htmlFor="chainSelect" className="text-sm font-medium text-gray-700">
+            <label
+              htmlFor="chainSelect"
+              className="text-sm font-medium text-gray-700"
+            >
               Chain
             </label>
             <select
@@ -153,7 +168,10 @@ export default function Page() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label htmlFor="userOpJson" className="text-sm font-medium text-gray-700">
+            <label
+              htmlFor="userOpJson"
+              className="text-sm font-medium text-gray-700"
+            >
               UserOp JSON
             </label>
             <textarea
@@ -163,31 +181,54 @@ export default function Page() {
               value={userOpJson}
               onChange={handleUserOpJsonChange}
             />
-            {parseError && (
-              <p className="text-sm text-red-600">{parseError}</p>
-            )}
+            {parseError && <p className="text-sm text-red-600">{parseError}</p>}
             {userOp && !parseError && (
               <>
                 {signatureMessage && (
                   <p className="text-sm text-amber-600">{signatureMessage}</p>
                 )}
-                <p className="text-sm text-green-600">UserOp parsed successfully!</p>
+                {userOp && userOp.signature === DUMMY_WALLET_PASSKEY_SIG && (
+                  <div className="flex gap-2">
+                    <button
+                      className="rounded-lg bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-300"
+                      onClick={() => {
+                        // Create new userOp with modified signature
+                        const modifiedUserOp = {
+                          ...userOp,
+                          signature: userOp.signature + "00", // Add EOA signature placeholder
+                        };
+                        setUserOp(modifiedUserOp);
+                        setUserOpJson(JSON.stringify(modifiedUserOp, null, 2));
+                      }}
+                    >
+                      Add ECDSA Signature
+                    </button>
+                  </div>
+                )}
+                <p className="text-sm text-green-600">
+                  UserOp parsed successfully!
+                </p>
               </>
             )}
           </div>
 
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <label htmlFor="rpcUrl" className="text-sm font-medium text-gray-700">
+              <label
+                htmlFor="rpcUrl"
+                className="text-sm font-medium text-gray-700"
+              >
                 Node RPC URL (Optional)
               </label>
-              <a 
+              <a
                 href="https://portal.cdp.coinbase.com"
                 target="_blank"
                 rel="noreferrer"
                 className="text-xs text-indigo-600 hover:underline"
               >
-                <span className="flex items-center">Get one for Base at CDP <ArrowSvg /></span>
+                <span className="flex items-center">
+                  Get one for Base at CDP <ArrowSvg />
+                </span>
               </a>
             </div>
             <input
@@ -198,9 +239,7 @@ export default function Page() {
               value={rpcUrl}
               onChange={handleRpcUrlChange}
             />
-            {rpcError && (
-              <p className="text-sm text-red-600">{rpcError}</p>
-            )}
+            {rpcError && <p className="text-sm text-red-600">{rpcError}</p>}
           </div>
         </div>
 
