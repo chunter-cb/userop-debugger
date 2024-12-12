@@ -59,4 +59,3 @@ export function parseUserOp(jsonStr: string): UserOperation {
     throw new Error('Failed to parse UserOperation');
   }
 }
-
