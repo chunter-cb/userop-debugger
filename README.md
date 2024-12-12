@@ -4,7 +4,7 @@ This tool is built to help debug userops!
 
 Built in a day during our 2024 Hackathon using OnchainKit + Viem!
 
-Shout out to Tenderly for making great simulations software! 
+Shout out to Tenderly for making great simulation software! 
 <br />
 
 ## Setup
@@ -39,9 +39,9 @@ bun run dev
 <br />
 
 ## Resources
-
+- [Coinbase Developer Platform](https://cdp.coinbase.com)
+- [Tenderly ](https://tenderly.co/)
 - [OnchainKit documentation](https://onchainkit.xyz)
-- We use the [OnchainKit Early Adopter](https://github.com/neodaoist/onchainkit-early-adopter) contract written by neodaoist [[X]](https://x.com/neodaoist)
 
 <br />
 
