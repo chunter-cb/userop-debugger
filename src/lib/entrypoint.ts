@@ -70,7 +70,7 @@ export function toHandleOp(userOp: UserOperation): `0x${string}` {
 
   return encodeFunctionData({
     abi: entrypointABI,
-    functionName: 'handleOp',
-    args: [userOpTuple]
+    functionName: 'handleOps',
+    args: [[userOpTuple], ZERO_ADDRESS]
   });
 } 

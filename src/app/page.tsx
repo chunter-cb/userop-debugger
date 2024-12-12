@@ -2,10 +2,12 @@
 import Footer from "src/components/Footer";
 import {
   tenderlySimulateHandleOpLink,
-  traceUserOp,
+  traceUserOpViaSimulateHandleOp,
   parseUserOp,
   UserOperation,
   DUMMY_WALLET_PASSKEY_SIG,
+  DUMMY_ECDSA_SIG,
+  CallTraceData,
 } from "../lib";
 import { useAccount } from "wagmi";
 import LoginButton from "../components/LoginButton";
@@ -22,6 +24,14 @@ import {
 } from "viem/chains";
 import { createPublicClient, http, PublicClient } from "viem";
 import debounce from "lodash/debounce";
+import CallTrace from "src/components/CallTrace";
+import CallTraceView from "src/components/CallTrace";
+
+// Add a new type for output structure
+type OutputType = {
+  type: 'error' | 'link' | 'json' | 'callTrace';
+  content: string | CallTraceData;
+};
 
 export default function Page() {
   const { address } = useAccount();
@@ -30,7 +40,7 @@ export default function Page() {
   const [chainId, setChainId] = useState<number>(base.id);
   const [userOpJson, setUserOpJson] = useState("");
   const [rpcUrl, setRpcUrl] = useState("");
-  const [output, setOutput] = useState("");
+  const [output, setOutput] = useState<OutputType>({ type: 'json', content: '' });
   const [userOp, setUserOp] = useState<UserOperation | null>(null);
   const [parseError, setParseError] = useState<string>("");
   const [signatureMessage, setSignatureMessage] = useState("");
@@ -39,6 +49,37 @@ export default function Page() {
 
   const chains = [base, baseSepolia, mainnet, optimism, arbitrum, polygon];
 
+  // Main handlers
+  const handleGetTenderlySimulation = async () => {
+    try {
+      setOutput({ type: 'json', content: 'Fetching simulation...' });
+      if (!userOp) {
+        throw new Error("UserOp is not correctly parsed");
+      }
+      const result = await tenderlySimulateHandleOpLink({ chainId, userOp });
+      setOutput({ type: 'link', content: result });
+    } catch (error: any) {
+      setOutput({ type: 'error', content: error.message });
+    }
+  };
+
+  const handleTraceUserOp = async () => {
+    try {
+      setOutput({ type: 'json', content: 'Tracing UserOp...' });
+      if (!userOp) {
+        throw new Error("UserOp is not correctly parsed");
+      }
+      if (!provider) {
+        throw new Error("Provider is not correctly set");
+      }
+      const result = await traceUserOpViaSimulateHandleOp({ userOp, provider });
+      setOutput({ type: 'callTrace', content: result });
+    } catch (error: any) {
+      setOutput({ type: 'error', content: error.message });
+    }
+  };
+
+  // Parse handlers
   const tryParseUserOp = (json: string) => {
     try {
       if (!json.trim()) {
@@ -65,36 +106,7 @@ export default function Page() {
     }
   };
 
-  // Add handlers
-  const handleGetTenderlySimulation = async () => {
-    try {
-      setOutput("Fetching simulation...");
-      if (!userOp) {
-        throw new Error("UserOp is not correctly parsed");
-      }
-      const result = await tenderlySimulateHandleOpLink({ chainId, userOp });
-      setOutput(JSON.stringify(result, null, 2));
-    } catch (error: any) {
-      setOutput(`Error: ${error.message}`);
-    }
-  };
-
-  const handleTraceUserOp = async () => {
-    try {
-      setOutput("Tracing UserOp...");
-      if (!userOp) {
-        throw new Error("UserOp is not correctly parsed");
-      }
-      if (!provider) {
-        throw new Error("Provider is not correctly set");
-      }
-      const result = await traceUserOp({ chainId, userOp, provider });
-      setOutput(JSON.stringify(result, null, 2));
-    } catch (error: any) {
-      setOutput(`Error: ${error.message}`);
-    }
-  };
-
+  // Input handlers
   const handleUserOpJsonChange = (
     e: React.ChangeEvent<HTMLTextAreaElement>
   ) => {
@@ -129,6 +141,32 @@ export default function Page() {
   const handleRpcUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setRpcUrl(e.target.value);
     debouncedValidateRpc(e.target.value);
+  };
+
+  // Update the output rendering
+  const renderOutput = () => {
+    switch (output.type) {
+      case 'link':
+        return (
+          <a 
+            href={output.content as string} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="text-indigo-600 hover:underline"
+          >
+            Tenderly Simulation Link <ArrowSvg />
+          </a>
+        );
+      case 'error':
+        return <span className="text-red-600">Error: {output.content as string}</span>;
+      case 'callTrace':
+        debugger;
+        return (
+          <div className="flex flex-col gap-2">
+            <CallTraceView call={output.content as CallTraceData} />
+          </div>
+        );
+    }
   };
 
   return (
@@ -195,7 +233,7 @@ export default function Page() {
                         // Create new userOp with modified signature
                         const modifiedUserOp = {
                           ...userOp,
-                          signature: userOp.signature + "00", // Add EOA signature placeholder
+                          signature: DUMMY_ECDSA_SIG
                         };
                         setUserOp(modifiedUserOp);
                         setUserOpJson(JSON.stringify(modifiedUserOp, null, 2));
@@ -249,7 +287,7 @@ export default function Page() {
             onClick={handleGetTenderlySimulation}
             disabled={!userOp}
           >
-            Get Tenderly Simulation
+            Create Tenderly Simulate URL
           </button>
 
           <button
@@ -257,16 +295,16 @@ export default function Page() {
             onClick={handleTraceUserOp}
             disabled={!userOpJson || !provider}
           >
-            Trace UserOp (RPC URL required)
+            RPC Trace UserOp (Debug RPC URL required)
           </button>
         </div>
 
         <div className="flex flex-col gap-2">
           <h3 className="text-sm font-medium text-gray-700">Output</h3>
           <div className="min-h-[100px] rounded-lg border border-gray-300 bg-white p-4">
-            <pre className="whitespace-pre-wrap break-words text-sm">
-              {output}
-            </pre>
+            <div className="whitespace-pre-wrap break-words text-sm">
+              {renderOutput()}
+            </div>
           </div>
         </div>
       </section>
