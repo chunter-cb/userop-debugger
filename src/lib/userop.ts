@@ -15,7 +15,12 @@ export interface UserOperation {
 export function parseUserOp(jsonStr: string): UserOperation {
   try {
     // Parse JSON string
-    const parsed = JSON.parse(jsonStr);
+    var parsed = JSON.parse(jsonStr);
+
+    // Check if the UserOp is nested under request.transaction
+    if (parsed?.request?.transaction) {
+      parsed = parsed.request.transaction;
+    }
 
     // Extract UserOperation fields, defaulting to empty strings if missing
     const userOp: UserOperation = {
