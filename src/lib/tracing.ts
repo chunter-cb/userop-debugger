@@ -2,22 +2,19 @@ import { ENTRYPOINT_ADDRESS_V06, ZERO_ADDRESS } from "./constants";
 import { toSimulateHandleOp } from "./entrypoint";
 import { UserOperation } from "./userop";
 import {
-  createPublicClient,
-  http,
+  PublicClient
 } from "viem";
 
 export async function traceUserOp({
-  chain,
+  chainId,
   userOp,
-  rpcUrl,
+  provider,
 }: {
-  chain: string;
+  chainId: number;
   userOp: UserOperation;
-  rpcUrl: string;
+  provider: PublicClient;
 }) {
-  const provider = createPublicClient({
-    transport: http(rpcUrl),
-  })
+
 
   // Convert the userOp to the format expected by simulateHandleOp
   const simulateHandleOpCallData = toSimulateHandleOp(userOp);
@@ -45,5 +42,5 @@ export async function traceUserOp({
 
   console.log("Trace result:", JSON.stringify(result, null, 2));
 
-  return { status: "traced", chain, rpcUrl, userOp, result };
+  return { result };
 }

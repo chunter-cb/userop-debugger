@@ -1,36 +1,50 @@
 'use client';
 import Footer from 'src/components/Footer';
-import { tenderlySimulateHandleOpLink, traceUserOp, parseUserOp, UserOperation } from '../lib';
+import { tenderlySimulateHandleOpLink, traceUserOp, parseUserOp, UserOperation, DUMMY_WALLET_PASSKEY_SIG } from '../lib';
 import { useAccount } from 'wagmi';
 import LoginButton from '../components/LoginButton';
 import SignupButton from '../components/SignupButton';
 import ArrowSvg from 'src/svg/ArrowSvg';
 import { useState } from 'react';
-
+import { base, baseSepolia, mainnet, optimism, arbitrum, polygon } from 'viem/chains'
+import { createPublicClient, http, PublicClient } from 'viem';
 export default function Page() {
   const { address } = useAccount();
   
   // Add state management
-  const [chain, setChain] = useState('base');
+  const [chainId, setChainId] = useState<number>(base.id);
   const [userOpJson, setUserOpJson] = useState('');
   const [rpcUrl, setRpcUrl] = useState('');
   const [output, setOutput] = useState('');
   const [userOp, setUserOp] = useState<UserOperation | null>(null);
   const [parseError, setParseError] = useState<string>('');
+  const [signatureMessage, setSignatureMessage] = useState('');
+  const [provider, setProvider] = useState<PublicClient | null>(null);
+
+  const chains = [base, baseSepolia, mainnet, optimism, arbitrum, polygon]
 
   const tryParseUserOp = (json: string) => {
     try {
       if (!json.trim()) {
         setUserOp(null);
         setParseError('');
-        return;
+        return '';
       }
-      const parsed = parseUserOp(json);
-      setUserOp(parsed);
+      const parsedUserOp = parseUserOp(json);
+
+      let signatureMessage = '';
+      if (parsedUserOp.signature == '0x') {
+        parsedUserOp.signature = DUMMY_WALLET_PASSKEY_SIG;
+        signatureMessage = 'Note: A dummy passkey signature was added since none was provided.';
+      } // todo add EOA sig if needed (add button to switch between passkey and EOA)
+
+      setUserOp(parsedUserOp);
       setParseError('');
+      return signatureMessage;
     } catch (error: any) {
       setUserOp(null);
       setParseError(error.message);
+      return '';
     }
   };
 
@@ -41,7 +55,7 @@ export default function Page() {
       if (!userOp) {
         throw new Error('UserOp is not correctly parsed');
       }
-      const result = await tenderlySimulateHandleOpLink({ chain, userOp });
+      const result = await tenderlySimulateHandleOpLink({ chainId, userOp });
       setOutput(JSON.stringify(result, null, 2));
     } catch (error: any) {
       setOutput(`Error: ${error.message}`);
@@ -54,10 +68,43 @@ export default function Page() {
       if (!userOp) {
         throw new Error('UserOp is not correctly parsed');
       }
-      const result = await traceUserOp({ chain, userOp, rpcUrl });
+      if (!provider) {
+        throw new Error('Provider is not correctly set');
+      }
+      const result = await traceUserOp({ chainId, userOp, provider });
       setOutput(JSON.stringify(result, null, 2));
     } catch (error: any) {
       setOutput(`Error: ${error.message}`);
+    }
+  };
+
+  const handleUserOpJsonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setUserOpJson(e.target.value);
+    const message = tryParseUserOp(e.target.value);
+    setSignatureMessage(message);
+  };
+
+  const handleRpcUrlChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRpcUrl(e.target.value);
+
+    if (!e.target.value) {
+      setProvider(null);
+      return;
+    }
+
+    // validate RPC URL
+    const provider = createPublicClient({ transport: http(e.target.value) });
+    setProvider(provider);
+    try {
+      const chain = await provider.getChainId();
+      console.log("chain", chain);
+      if (chain !== chainId) {
+        throw new Error("Chain id mismatch for RPC URL");
+      }
+      setChainId(chain);
+    } catch (error) {
+      // Optional: Add error handling here if needed
+      console.error('Failed to validate RPC URL:', error);
     }
   };
 
@@ -87,13 +134,14 @@ export default function Page() {
             <select
               id="chainSelect"
               className="w-full rounded-lg border border-gray-300 p-3 text-sm appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:0.7em] bg-[right_0.75rem_center] bg-no-repeat"
-              value={chain}
-              onChange={(e) => setChain(e.target.value)}
+              value={chainId}
+              onChange={(e) => setChainId(Number(e.target.value))}
             >
-              <option value="base">Base</option>
-              <option value="base-sepolia">Base Sepolia</option>
-              <option value="ethereum">Ethereum</option>
-              <option value="optimism">Optimism</option>
+              {chains.map((chain) => (
+                <option key={chain.id} value={chain.id}>
+                  {chain.name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -106,16 +154,18 @@ export default function Page() {
               className="min-h-[120px] w-full rounded-lg border border-gray-300 p-3 text-sm"
               placeholder="Paste your UserOp JSON here..."
               value={userOpJson}
-              onChange={(e) => {
-                setUserOpJson(e.target.value);
-                tryParseUserOp(e.target.value);
-              }}
+              onChange={handleUserOpJsonChange}
             />
             {parseError && (
               <p className="text-sm text-red-600">{parseError}</p>
             )}
             {userOp && !parseError && (
-              <p className="text-sm text-green-600">UserOp parsed successfully!</p>
+              <>
+                {signatureMessage && (
+                  <p className="text-sm text-amber-600">{signatureMessage}</p>
+                )}
+                <p className="text-sm text-green-600">UserOp parsed successfully!</p>
+              </>
             )}
           </div>
 
@@ -139,7 +189,7 @@ export default function Page() {
               className="w-full rounded-lg border border-gray-300 p-3 text-sm"
               placeholder="https://..."
               value={rpcUrl}
-              onChange={(e) => setRpcUrl(e.target.value)}
+              onChange={handleRpcUrlChange}
             />
           </div>
         </div>
@@ -148,6 +198,7 @@ export default function Page() {
           <button
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
             onClick={handleGetTenderlySimulation}
+            disabled={!userOp}
           >
             Get Tenderly Simulation
           </button>
@@ -155,9 +206,9 @@ export default function Page() {
           <button
             className="rounded-lg bg-gray-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 hover:bg-gray-700"
             onClick={handleTraceUserOp}
-            disabled={!userOpJson}
+            disabled={!userOpJson || !provider}
           >
-            Trace UserOp
+            Trace UserOp (RPC URL required)
           </button>
         </div>
 

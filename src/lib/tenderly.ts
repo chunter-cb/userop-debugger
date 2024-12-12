@@ -1,11 +1,9 @@
 import { UserOperation } from "./userop";
-import { getChainId } from "./constants";
 import { toSimulateHandleOp } from "./entrypoint";
-export async function tenderlySimulateHandleOpLink({ chain, userOp }: {
-  chain: string;
+export async function tenderlySimulateHandleOpLink({ chainId, userOp }: {
+  chainId: number;
   userOp: UserOperation;
 }) {
-  const chainId = getChainId(chain);
   const ENTRYPOINT = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
   
   const baseUrl = "https://dashboard.tenderly.co/chunter/alert/simulator/new";
@@ -19,5 +17,5 @@ export async function tenderlySimulateHandleOpLink({ chain, userOp }: {
 
   const simulationUrl = `${baseUrl}?${params.toString()}`;
   
-  return { status: 'simulated', chain, userOp, simulationUrl };
+  return {simulationUrl };
 } 
