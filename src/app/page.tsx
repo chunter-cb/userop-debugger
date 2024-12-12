@@ -5,9 +5,11 @@ import { useAccount } from 'wagmi';
 import LoginButton from '../components/LoginButton';
 import SignupButton from '../components/SignupButton';
 import ArrowSvg from 'src/svg/ArrowSvg';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { base, baseSepolia, mainnet, optimism, arbitrum, polygon } from 'viem/chains'
 import { createPublicClient, http, PublicClient } from 'viem';
+import debounce from 'lodash/debounce';
+
 export default function Page() {
   const { address } = useAccount();
   
@@ -20,6 +22,7 @@ export default function Page() {
   const [parseError, setParseError] = useState<string>('');
   const [signatureMessage, setSignatureMessage] = useState('');
   const [provider, setProvider] = useState<PublicClient | null>(null);
+  const [rpcError, setRpcError] = useState<string>('');
 
   const chains = [base, baseSepolia, mainnet, optimism, arbitrum, polygon]
 
@@ -84,28 +87,32 @@ export default function Page() {
     setSignatureMessage(message);
   };
 
-  const handleRpcUrlChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    setRpcUrl(e.target.value);
-
-    if (!e.target.value) {
-      setProvider(null);
-      return;
-    }
-
-    // validate RPC URL
-    const provider = createPublicClient({ transport: http(e.target.value) });
-    setProvider(provider);
-    try {
-      const chain = await provider.getChainId();
-      console.log("chain", chain);
-      if (chain !== chainId) {
-        throw new Error("Chain id mismatch for RPC URL");
+  // Create a debounced version of the RPC validation
+  const debouncedValidateRpc = useCallback(
+    debounce(async (url: string) => {
+      if (!url) {
+        setProvider(null);
+        setRpcError('');
+        return;
       }
-      setChainId(chain);
-    } catch (error) {
-      // Optional: Add error handling here if needed
-      console.error('Failed to validate RPC URL:', error);
-    }
+
+      const provider = createPublicClient({ transport: http(url) });
+      setProvider(provider);
+      try {
+        const chain = await provider.getChainId();
+        setChainId(chain);
+        setRpcError('');
+      } catch (error) {
+        console.error('Failed to validate RPC URL:', error);
+        setRpcError('Invalid RPC URL');
+      }
+    }, 700),
+    []
+  );
+
+  const handleRpcUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRpcUrl(e.target.value);
+    debouncedValidateRpc(e.target.value);
   };
 
   return (
@@ -191,6 +198,9 @@ export default function Page() {
               value={rpcUrl}
               onChange={handleRpcUrlChange}
             />
+            {rpcError && (
+              <p className="text-sm text-red-600">{rpcError}</p>
+            )}
           </div>
         </div>
 
