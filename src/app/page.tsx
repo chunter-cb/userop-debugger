@@ -1,6 +1,6 @@
 'use client';
 import Footer from 'src/components/Footer';
-import { simulateUserOp, traceUserOp, parseUserOp, UserOperation } from '../lib';
+import { tenderlySimulateHandleOpLink, traceUserOp, parseUserOp, UserOperation } from '../lib';
 import { useAccount } from 'wagmi';
 import LoginButton from '../components/LoginButton';
 import SignupButton from '../components/SignupButton';
@@ -35,13 +35,13 @@ export default function Page() {
   };
 
   // Add handlers
-  const handleGetSimulation = async () => {
+  const handleGetTenderlySimulation = async () => {
     try {
       setOutput('Fetching simulation...');
       if (!userOp) {
         throw new Error('UserOp is not correctly parsed');
       }
-      const result = await simulateUserOp({ chain, userOp, rpcUrl });
+      const result = await tenderlySimulateHandleOpLink({ chain, userOp });
       setOutput(JSON.stringify(result, null, 2));
     } catch (error: any) {
       setOutput(`Error: ${error.message}`);
@@ -147,7 +147,7 @@ export default function Page() {
         <div className="flex flex-col gap-4">
           <button
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-            onClick={handleGetSimulation}
+            onClick={handleGetTenderlySimulation}
           >
             Get Tenderly Simulation
           </button>

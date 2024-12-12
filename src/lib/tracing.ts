@@ -4,10 +4,6 @@ import { UserOperation } from "./userop";
 import {
   createPublicClient,
   http,
-  Address,
-  encodeFunctionData,
-  formatTransactionRequest,
-  type CallParameters,
 } from "viem";
 
 export async function traceUserOp({
