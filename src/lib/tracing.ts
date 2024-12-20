@@ -23,13 +23,15 @@ export interface CallTraceData {
 export async function traceUserOpViaSimulateHandleOp({
   userOp,
   provider,
+  blockNumber = "latest"
 }: {
   userOp: UserOperation;
   provider: PublicClient;
+  blockNumber?: "latest" | "earliest" | "pending" | `0x${string}`;
 }) {
   // Convert the userOp to the format expected by simulateHandleOp
   const simulateHandleOpCallData = toSimulateHandleOp(userOp);
-
+  console.log('simulating for blockNumber', blockNumber);
   const params = {
     from: ZERO_ADDRESS,
     to: ENTRYPOINT_ADDRESS_V06,
@@ -46,44 +48,44 @@ export async function traceUserOpViaSimulateHandleOp({
 
   const result = await provider.request({
     method: "debug_traceCall" as any,
-    params: [params, "latest", settings],
+    params: [params, blockNumber, settings],
   });
-
-  console.log("Trace result:", JSON.stringify(result, null, 2));
 
   return result as CallTraceData;
 }
 
 export async function traceUserOpViaHandleOp({
-    userOp,
-    provider,
-  }: {
-    userOp: UserOperation;
-    provider: PublicClient;
-  }) {
-    // Convert the userOp to the format expected by simulateHandleOp
-    const handleOpCallData = toHandleOp(userOp);
-  
-    const params = {
-      from: ZERO_ADDRESS,
-      to: ENTRYPOINT_ADDRESS_V06,
-      data: handleOpCallData,
-    };
-  
-    const settings = {
-      tracer: "callTracer",
-    //   stateOverrides: {
-    //     [userOp.sender]: { balance: "0xffffffffffffffffffffffff" },
-    //     [ZERO_ADDRESS]: { balance: "0xffffffffffffffffffffffff" },
-    //   },
-    };
-  
-    const result = await provider.request({
-      method: "debug_traceCall" as any,
-      params: [params, "latest", settings],
-    });
-  
-    // console.log("Trace result:", JSON.stringify(result, null, 2));
-    
-    return result as CallTraceData;
-  }
+  userOp,
+  provider,
+  blockNumber = "latest"
+}: {
+  userOp: UserOperation;
+  provider: PublicClient;
+  blockNumber?: "latest" | "earliest" | "pending" | `0x${string}`;
+}) {
+  // Convert the userOp to the format expected by simulateHandleOp
+  const handleOpCallData = toHandleOp(userOp);
+
+  const params = {
+    from: ZERO_ADDRESS,
+    to: ENTRYPOINT_ADDRESS_V06,
+    data: handleOpCallData,
+  };
+
+  const settings = {
+    tracer: "callTracer",
+    // stateOverrides: {
+    //   [userOp.sender]: { balance: "0xffffffffffffffffffffffff" },
+    //   [ZERO_ADDRESS]: { balance: "0xffffffffffffffffffffffff" },
+    // },
+  };
+
+  const result = await provider.request({
+    method: "debug_traceCall" as any,
+    params: [params, blockNumber, settings],
+  });
+
+  // console.log("Trace result:", JSON.stringify(result, null, 2));
+
+  return result as CallTraceData;
+}

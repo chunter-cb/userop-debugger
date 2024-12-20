@@ -46,6 +46,7 @@ export default function Page() {
   const [signatureMessage, setSignatureMessage] = useState("");
   const [provider, setProvider] = useState<PublicClient | null>(null);
   const [rpcError, setRpcError] = useState<string>("");
+  const [blockNumber, setBlockNumber] = useState<string>("");
 
   const chains = [base, baseSepolia, mainnet, optimism, arbitrum, polygon];
 
@@ -72,7 +73,11 @@ export default function Page() {
       if (!provider) {
         throw new Error("Provider is not correctly set");
       }
-      const result = await traceUserOpViaSimulateHandleOp({ userOp, provider });
+      const result = await traceUserOpViaSimulateHandleOp({ 
+        userOp, 
+        provider,
+        blockNumber: blockNumber ? `0x${BigInt(blockNumber).toString(16)}` : undefined
+      });
       setOutput({ type: 'callTrace', content: result });
     } catch (error: any) {
       setOutput({ type: 'error', content: error.message });
@@ -160,7 +165,6 @@ export default function Page() {
       case 'error':
         return <span className="text-red-600">Error: {output.content as string}</span>;
       case 'callTrace':
-        debugger;
         return (
           <div className="flex flex-col gap-2">
             <CallTraceView call={output.content as CallTraceData} />
@@ -278,6 +282,23 @@ export default function Page() {
               onChange={handleRpcUrlChange}
             />
             {rpcError && <p className="text-sm text-red-600">{rpcError}</p>}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label
+              htmlFor="blockNumber"
+              className="text-sm font-medium text-gray-700"
+            >
+              Block Number (Optional)
+            </label>
+            <input
+              id="blockNumber"
+              type="text"
+              className="w-full rounded-lg border border-gray-300 p-3 text-sm"
+              placeholder="Enter block number..."
+              value={blockNumber}
+              onChange={(e) => setBlockNumber(e.target.value)}
+            />
           </div>
         </div>
 

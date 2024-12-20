@@ -28,18 +28,11 @@ export function toSimulateHandleOp(
     userOp.signature,
   ] as const;
 
-  let postOpAddress: Address;
-  let postOpData: `0x${string}`;
+    const postOpAddress = ZERO_ADDRESS;
+    const postOpData = '0x';
 
-  if (userOp.paymasterAndData.length >= 42) {
-    // postOpAddress is the first 42 characters (including '0x')
-    postOpAddress = userOp.paymasterAndData.slice(0, 42) as Address;
-    // postOpData is the rest of paymasterAndData
-    postOpData = `0x${userOp.paymasterAndData.slice(42)}` as `0x${string}`;
-  } else {
-    postOpAddress = ZERO_ADDRESS;
-    postOpData = '0x';
-  }
+  console.log('postOpAddress', postOpAddress);
+  console.log('postOpData', postOpData);
 
   return encodeFunctionData({
     abi: entrypointABI,
