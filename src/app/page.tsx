@@ -112,12 +112,17 @@ export default function Page() {
   };
 
   // Input handlers
-  const handleUserOpJsonChange = (
-    e: React.ChangeEvent<HTMLTextAreaElement>
-  ) => {
-    setUserOpJson(e.target.value);
-    const message = tryParseUserOp(e.target.value);
+  const handleUserOpJsonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const inputValue = e.target.value;
+    setUserOpJson(inputValue);
+    
+    const message = tryParseUserOp(inputValue);
     setSignatureMessage(message);
+    
+    // If parsing was successful, update with prettified version of the parsed UserOp
+    if (userOp) {
+      setUserOpJson(JSON.stringify(userOp, null, 2));
+    }
   };
 
   // Create a debounced version of the RPC validation
