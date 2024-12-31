@@ -18,6 +18,8 @@
   },
   "dependencies": {
     "@coinbase/onchainkit": "^0.35.6",
+    "@heroicons/react": "^2.2.0",
+    "axios": "^1.7.9",
     "lodash": "^4.17.21",
     "next": "^14.2.5",
     "permissionless": "^0.1.26",

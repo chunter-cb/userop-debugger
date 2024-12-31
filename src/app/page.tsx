@@ -24,8 +24,8 @@ import {
 } from "viem/chains";
 import { createPublicClient, http, PublicClient } from "viem";
 import debounce from "lodash/debounce";
-import CallTrace from "src/components/CallTrace";
 import CallTraceView from "src/components/CallTrace";
+import { ClipboardIcon } from '@heroicons/react/24/outline';
 
 // Add a new type for output structure
 type OutputType = {
@@ -172,6 +172,18 @@ export default function Page() {
       case 'callTrace':
         return (
           <div className="flex flex-col gap-2">
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  const jsonStr = JSON.stringify(output.content, null, 2);
+                  navigator.clipboard.writeText(jsonStr);
+                }}
+                className="flex items-center gap-1 rounded-lg bg-gray-200 px-2 py-1 text-sm hover:bg-gray-300"
+              >
+                <ClipboardIcon className="h-4 w-4" />
+                Copy JSON
+              </button>
+            </div>
             <CallTraceView call={output.content as CallTraceData} />
           </div>
         );

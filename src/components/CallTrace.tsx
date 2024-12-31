@@ -1,8 +1,10 @@
 import { CallTraceData } from "src/lib/tracing";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Interface, AbiCoder } from "ethers";
 import EntryPointABI from "../lib/abi/entrypoint06.json";
 import CDPPaymasterABI from "../lib/abi/paymaster06.json";
+import axios from 'axios';
+
 const KNOWN_CONTRACTS: Record<string, { name: string; iface: Interface }> = {
   "0x5ff137d4b0fdcd49dca30c7cf57e578a026d2789": {
     name: "EntryPoint",
@@ -18,32 +20,116 @@ const KNOWN_CONTRACTS: Record<string, { name: string; iface: Interface }> = {
   },
 };
 
+const SOURCIFY_API = 'https://sourcify.dev/server';
+
+async function getSourcifyABI(address: string, chainId: number) {
+  try {
+    const response = await axios.get(
+      `${SOURCIFY_API}/files/any/${chainId}/${address}`
+    );
+    const metadata = response.data;
+    return new Interface(metadata.output.abi);
+  } catch (e) {
+    console.error('Failed to fetch from Sourcify:', e);
+    return null;
+  }
+}
+
+// Add type for cached ABI
+interface CachedABI {
+  timestamp: number;
+  abi: string;  // Store as string to work with localStorage
+}
+
+// Modified to include cache management
+const getStoredABI = (address: string): Interface | null => {
+  try {
+    const cached = localStorage.getItem(`abi_${address.toLowerCase()}`);
+    if (cached) {
+      const parsedCache: CachedABI = JSON.parse(cached);
+      // Cache for 24 hours
+      if (Date.now() - parsedCache.timestamp < 24 * 60 * 60 * 1000) {
+        return new Interface(parsedCache.abi);
+      }
+    }
+  } catch (e) {
+    console.error('Error reading from cache:', e);
+  }
+  return null;
+};
+
+const storeABI = (address: string, iface: Interface) => {
+  try {
+    const cacheData: CachedABI = {
+      timestamp: Date.now(),
+      abi: JSON.stringify(iface.format()),
+    };
+    localStorage.setItem(`abi_${address.toLowerCase()}`, JSON.stringify(cacheData));
+  } catch (e) {
+    console.error('Error storing to cache:', e);
+  }
+};
+
+async function getContractABI(address: string, chainId: number = 1): Promise<Interface | null> {
+  const normalizedAddress = address.toLowerCase();
+  
+  // Check known contracts first
+  if (KNOWN_CONTRACTS[normalizedAddress]) {
+    return KNOWN_CONTRACTS[normalizedAddress].iface;
+  }
+
+  // Check localStorage cache
+  const cachedABI = getStoredABI(normalizedAddress);
+  if (cachedABI) {
+    return cachedABI;
+  }
+
+  // Try Sourcify
+  try {
+    const iface = await getSourcifyABI(normalizedAddress, chainId);
+    if (iface) {
+      storeABI(normalizedAddress, iface);
+      return iface;
+    }
+  } catch (e) {
+    console.error('Failed to fetch ABI:', e);
+  }
+  
+  return null;
+}
+
 export default function CallTraceView({
   call,
   depth = 0,
+  chainId = 1,
 }: {
   call: CallTraceData;
   depth?: number;
+  chainId?: number;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const hasSubcalls = call.calls && call.calls.length > 0;
+  const [decodedInput, setDecodedInput] = useState<string>(call.input ?? "0x");
+  const [decodedOutput, setDecodedOutput] = useState<string>(call.output ?? "0x");
+  
+  useEffect(() => {
+    const decodeData = async () => {
+      const input = await tryDecodeCalldata(call.to, call.input ?? "0x", chainId);
+      const output = await tryDecodeOutput(call.to, call.output ?? "0x", chainId);
+      setDecodedInput(input);
+      setDecodedOutput(output);
+    };
+    
+    decodeData();
+  }, [call.to, call.input, call.output, chainId]);
 
-  const tryDecodeCalldata = (to: string, input: string) => {
-    const normalizedTo = to.toLowerCase();
-    console.log("Trying to decode:", {
-      to,
-      normalizedTo,
-      input,
-      knownAddresses: Object.keys(KNOWN_CONTRACTS),
-      foundContract: !!KNOWN_CONTRACTS[normalizedTo],
-    });
-
-    const contract = KNOWN_CONTRACTS[normalizedTo];
-    if (!contract || !input || input === "0x") return input;
+  const tryDecodeCalldata = async (to: string, input: string, chainId: number) => {
+    if (!input || input === "0x") return input;
+    
+    const iface = await getContractABI(to, chainId);
+    if (!iface) return input;
 
     try {
-      const decoded = contract.iface.parseTransaction({ data: input });
-      console.log("Decoded result:", decoded);
+      const decoded = iface.parseTransaction({ data: input });
       if (!decoded) return input;
       return `${decoded.name}(${decoded.args.map((arg) => arg.toString()).join(", ")})`;
     } catch (e) {
@@ -52,9 +138,11 @@ export default function CallTraceView({
     }
   };
 
-  const tryDecodeOutput = (to: string, output: string) => {
-    const contract = KNOWN_CONTRACTS[to.toLowerCase()];
-    if (!contract || !output || output === "0x") return output;
+  const tryDecodeOutput = async (to: string, output: string, chainId: number) => {
+    if (!output || output === "0x") return output;
+
+    const iface = await getContractABI(to, chainId);
+    if (!iface) return output;
 
     try {
       // Check for standard revert error format (0x08c379a0...)
@@ -72,9 +160,9 @@ export default function CallTraceView({
       console.log("Trying to decode output:", { to, output, selector });
 
       try {
-        const functionFragment = contract.iface.getFunction(selector);
+        const functionFragment = iface.getFunction(selector);
         if (functionFragment) {
-          const decoded = contract.iface.decodeFunctionResult(
+          const decoded = iface.decodeFunctionResult(
             functionFragment,
             output
           );
@@ -82,9 +170,9 @@ export default function CallTraceView({
         }
 
         // If function decoding fails, try error decoding
-        const errorFragment = contract.iface.getError(selector);
+        const errorFragment = iface.getError(selector);
         if (errorFragment) {
-          const decoded = contract.iface.decodeErrorResult(
+          const decoded = iface.decodeErrorResult(
             errorFragment,
             output
           );
@@ -100,8 +188,7 @@ export default function CallTraceView({
     }
   };
 
-  const decodedInput = tryDecodeCalldata(call.to, call.input ?? "0x");
-  const decodedOutput = tryDecodeOutput(call.to, call.output ?? "0x");
+  const hasSubcalls = call.calls && call.calls.length > 0;
 
   return (
     <div className="flex flex-col" style={{ marginLeft: `${depth * 20}px` }}>
@@ -155,7 +242,7 @@ export default function CallTraceView({
 
       {isExpanded &&
         call.calls?.map((subcall, index) => (
-          <CallTraceView key={index} call={subcall} depth={depth + 1} />
+          <CallTraceView key={index} call={subcall} depth={depth + 1} chainId={chainId} />
         ))}
     </div>
   );
