@@ -3,29 +3,25 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
+    "dev": "next dev",
     "build": "next build",
-    "check": "biome check --write .",
-    "ci:check": "biome ci --formatter-enabled=false --linter-enabled=false",
-    "ci:format": "biome ci --linter-enabled=false --organize-imports-enabled=false",
-    "ci:lint": "biome ci --formatter-enabled=false --organize-imports-enabled=false",
-    "dev": "NODE_OPTIONS='--inspect' next dev",
-    "format": "biome format --write .",
-    "lint": "biome lint --write .",
-    "lint:unsafe": "biome lint --write --unsafe .",
     "start": "next start",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "lint": "next lint"
   },
   "dependencies": {
-    "@coinbase/onchainkit": "^0.35.6",
+    "@coinbase/onchainkit": "^0.36.3",
     "@heroicons/react": "^2.2.0",
+    "@rainbow-me/rainbowkit": "^2.2.1",
+    "@tanstack/react-query": "^5.62.11",
     "axios": "^1.7.9",
     "lodash": "^4.17.21",
     "next": "^14.2.5",
-    "permissionless": "^0.1.26",
+    "permissionless": "^0.1.45",
     "react": "^18",
     "react-dom": "^18",
-    "siwe": "^2.3.2"
+    "siwe": "^2.3.2",
+    "viem": "^2.17.1",
+    "wagmi": "^2.14.6"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.8.0",

@@ -11,7 +11,6 @@ import {
 } from "../lib";
 import { useAccount } from "wagmi";
 import LoginButton from "../components/LoginButton";
-import SignupButton from "../components/SignupButton";
 import ArrowSvg from "src/svg/ArrowSvg";
 import { useState, useCallback } from "react";
 import {
@@ -26,6 +25,7 @@ import { createPublicClient, http, PublicClient } from "viem";
 import debounce from "lodash/debounce";
 import CallTraceView from "src/components/CallTrace";
 import { ClipboardIcon } from '@heroicons/react/24/outline';
+import { WalletDefault } from "@coinbase/onchainkit/wallet";
 
 // Add a new type for output structure
 type OutputType = {
@@ -198,8 +198,8 @@ export default function Page() {
             <span className="text-xl font-bold">Userop Debugger</span>
           </a>
           <div className="flex items-center gap-3">
-            <SignupButton />
-            {!address && <LoginButton />}
+            {/* <LoginButton /> */}
+            <WalletDefault />
           </div>
         </div>
       </section>
